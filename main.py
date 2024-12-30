@@ -42,6 +42,7 @@ class IslamBot(commands.AutoShardedBot):
             "hadith.transmitter_biographies",
             "tafsir.arabic_tafsir",
             "tafsir.tafsir",
+            'daily_post.daily_post',
             "miscellaneous.reload",
             "miscellaneous.help",
             "miscellaneous.TopGG" # Remove if using the bot locally

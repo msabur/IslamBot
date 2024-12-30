@@ -1,5 +1,7 @@
 import asyncio
 import configparser
+from datetime import datetime
+import pytz
 
 import aiomysql
 
@@ -159,3 +161,70 @@ class UserPrayerCalculationMethod(DBHandler):
 
     async def delete(self):
         return await self._delete_data()
+
+
+class ServerDailyPost(DBHandler):
+    table_name=config['MySQL']['server_daily_post_table_name']
+    key_columns=['server', 'post_type']
+    value_columns=['channel', 'daily_time', 'last_send_date', 'use_arabic']
+    columns = key_columns + value_columns
+
+    # `daily_time` column is type TIME, `last_send_date` column is type DATE
+    # `use_arabic` column is type BOOLEAN (1=true, 0=false)
+    
+    def __init__(self, guild_id: int, post_type: str):
+        super().__init__(
+            table_name=self.table_name, 
+            key_columns=self.key_columns, 
+            value_columns=self.value_columns,
+            default_values=['' for _ in self.value_columns],
+            key=[guild_id, post_type],
+        )
+
+    async def get(self) -> list[str]:
+        return await self._get_data()
+
+    async def update(self, channel: int, daily_time: str, last_send_date: str | None, use_arabic: bool | int):
+        if last_send_date is None:
+            last_send_date = "1900-01-01"
+        boolToInt = lambda b: 1 if b else 0
+        return await self._update_data(channel, daily_time, last_send_date, boolToInt(use_arabic))
+        
+    async def delete(self):
+        return await self._delete_data()
+
+    @classmethod
+    async def runSql(cls, sql, params) -> list:
+        connection = None
+        try:
+            connection = await DBHandler.create_connection()
+            async with connection.cursor() as cursor:
+                await cursor.execute(sql, params)
+                result = await cursor.fetchall()
+                connection.close()
+
+                if result is None:
+                    return []
+
+                return result
+        except:
+            if connection:
+                connection.close()
+            return []
+    
+    @classmethod
+    async def get_pending_tasks(cls) -> list:
+        now_utc = datetime.now(tz=pytz.utc)
+        formatted_time = now_utc.strftime('%H:%M')
+        formatted_date = now_utc.strftime('%Y-%m-%d')
+
+        query = (
+            f"SELECT {', '.join(cls.columns)} "
+            f"FROM {cls.table_name} "
+            f"WHERE daily_time <= %s AND last_send_date < %s"
+        )
+        return await cls.runSql(query, (formatted_time, formatted_date))
+
+    @classmethod
+    def parse_row(cls, row: list):
+        return { column_name: str(column_value) for column_name, column_value in zip(cls.columns, row) }
