@@ -336,15 +336,22 @@ class HadithCommands(commands.Cog):
 
 
 class HadithNavigator(discord.ui.View):
-    def __init__(self, hadith: HadithSpecifics, interaction: discord.Interaction):
+    def __init__(self, hadith: HadithSpecifics, interaction: discord.Interaction | None = None):
         super().__init__(timeout=300)
         self.hadith = hadith
         self.original_interaction = interaction
+        self.message: discord.Message | None
+    
+    def set_message(self, message: discord.Message):
+        self.message = message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.original_interaction.edit_original_response(view=self, content=":warning: This message has timed out.")
+        if self.original_interaction:
+            await self.original_interaction.edit_original_response(view=self, content=":warning: This message has timed out.")
+        elif self.message:
+            await self.message.edit(view=self, content=":warning: This message has timed out.")
 
     @discord.ui.button(label='Previous Page', style=discord.ButtonStyle.grey, emoji='⬅')
     async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
