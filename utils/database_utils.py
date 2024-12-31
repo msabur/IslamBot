@@ -38,7 +38,7 @@ class DBHandler:
             return self.default_values
 
         try:
-            key_comparison = ' AND '.join([f"{col} = {val}" for col, val in zip(self.key_columns, self.key)])
+            key_comparison = ' AND '.join([f"{col} = '{val}'" for col, val in zip(self.key_columns, self.key)])
 
             async with connection.cursor() as cursor:
                 await cursor.execute(f"SELECT {', '.join(self.value_columns)} "
@@ -46,7 +46,6 @@ class DBHandler:
                                      f"WHERE {key_comparison}")
                 result = await cursor.fetchone()
                 connection.close()
-
                 if result is None:
                     return self.default_values
 
@@ -70,11 +69,11 @@ class DBHandler:
 
     async def _delete_data(self):
         connection = await self.create_connection()
-        key_comparison_placeholder = ' AND '.join([f"{col}=%s" for col in self.key_columns])
+        key_comparison = ' AND '.join([f"{col} = '{val}'" for col, val in zip(self.key_columns, self.key)])
 
         async with connection.cursor() as cursor:
-            delete_sql = f"DELETE FROM {self.table_name} WHERE {key_comparison_placeholder}"
-            await cursor.execute(delete_sql, *self.key)
+            delete_sql = f"DELETE FROM {self.table_name} WHERE {key_comparison}"
+            await cursor.execute(delete_sql)
             connection.close()
 
 

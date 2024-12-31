@@ -340,7 +340,7 @@ class HadithNavigator(discord.ui.View):
         super().__init__(timeout=300)
         self.hadith = hadith
         self.original_interaction = interaction
-        self.message: discord.Message | None
+        self.message = None
     
     def set_message(self, message: discord.Message):
         self.message = message
