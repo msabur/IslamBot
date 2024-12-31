@@ -71,41 +71,52 @@ DUAS = {
 }
 
 
+class DuaRequest:
+    def __init__(self, subject: str):
+        self.subject: str = subject.title()
+        try:
+            self.dua_id = DUAS[subject]
+        except KeyError:
+            result = process.extract(self.subject, DUAS.keys(), scorer=fuzz.partial_ratio, limit=1)
+            if result is None:
+                raise KeyError
+
+            self.subject = result[0][0].title()
+            self.dua_id = DUAS[self.subject]
+    
+    async def fetch(self):
+        site_source = await get_site_source(URL.format(self.dua_id))
+        self.dua_text = []
+        for dua in site_source.findAll("div", {"class": 'search-item'}):
+            text = dua.get_text(separator=" ").strip() \
+                .replace("(saw)", "ﷺ")
+            text = '\n' + text
+            self.dua_text.append(text)
+        self.dua_text = ''.join(self.dua_text)
+        self.dua_text = self.dua_text.split("\n")  # split to get the number that was unintentionally scraped as an item
+
+        for item in self.dua_text:
+            if item.strip().isdigit():  # check if each item is a number
+                self.dua_text.remove(item)  # remove then number
+
+        self.dua_text = '\n'.join(self.dua_text)
+
+        return self
+
+    def make_embed(self) -> discord.Embed:
+        em = discord.Embed(title=f'Duas for {self.subject}', colour=0x467f05, description=self.dua_text)
+        em.set_author(name="Fortress of the Muslim", icon_url=ICON)
+        return em
+
+
 class Dua(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     async def _dua(self, interaction: discord.Interaction, subject: str):
-        subject = subject.title()
-        try:
-            dua_id = DUAS[subject]
-        except KeyError:
-            subject = process.extract(subject, DUAS.keys(), scorer=fuzz.partial_ratio, limit=1)
-            if subject is None:
-                raise KeyError
-
-            subject = subject[0][0].title()
-            dua_id = DUAS[subject]
-
-        site_source = await get_site_source(URL.format(dua_id))
-        dua_text = []
-        for dua in site_source.findAll("div", {"class": 'search-item'}):
-            text = dua.get_text(separator=" ").strip() \
-                .replace("(saw)", "ﷺ")
-            text = '\n' + text
-            dua_text.append(text)
-        dua_text = ''.join(dua_text)
-        dua_text = dua_text.split("\n")  # split to get the number that was unintentionally scraped as an item
-
-        for item in dua_text:
-            if item.strip().isdigit():  # check if each item is a number
-                dua_text.remove(item)  # remove then number
-
-        dua_text = '\n'.join(dua_text)
-
-        em = discord.Embed(title=f'Duas for {subject}', colour=0x467f05, description=dua_text)
-        em.set_author(name="Fortress of the Muslim", icon_url=ICON)
-        await interaction.followup.send(embed=em)
+        req = DuaRequest(subject)
+        await req.fetch()
+        await interaction.followup.send(embed=req.make_embed())
 
     async def _dua_list(self, interaction: discord.Interaction):
         dua_list_message = [f'**Type </dua:817163873730822195> <topic>**. Example: `/dua breaking fast`\n']
