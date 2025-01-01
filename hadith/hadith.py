@@ -336,8 +336,8 @@ class HadithCommands(commands.Cog):
 
 
 class HadithNavigator(discord.ui.View):
-    def __init__(self, hadith: HadithSpecifics, interaction: discord.Interaction | None = None):
-        super().__init__(timeout=300)
+    def __init__(self, hadith: HadithSpecifics, interaction: discord.Interaction | None = None, timeout: float | None = 300):
+        super().__init__(timeout=timeout)
         self.hadith = hadith
         self.original_interaction = interaction
         self.message = None
